@@ -30,8 +30,8 @@ class ImageErrorException(Exception):
 
 
 def get_image_type(url):
-    for ending in ['jpg', 'jpeg', '.gif' '.png']:
-        if url.endswith(ending):
+    for ending in ['jpg', 'jpeg', 'gif', 'png', 'bmp']:
+        if url.lower().endswith(ending):
             return ending
     else:
         try:
@@ -186,7 +186,11 @@ class Chapter(object):
     def _get_image_urls(self):
         image_nodes = self._content_tree.find_all('img')
         raw_image_urls = [node['src'] for node in image_nodes if node.has_attr('src')]
-        full_image_urls = [urlparse.urljoin(self.url, image_url) for image_url in raw_image_urls]
+        full_image_urls = []
+        if 'http' in self.url:
+            full_image_urls = [urlparse.urljoin(self.url, image_url) for image_url in raw_image_urls]
+        else:
+            full_image_urls = [os.path.join(self.url, image_url) for image_url in raw_image_urls]
         image_nodes_filtered = [node for node in image_nodes if node.has_attr('src')]
         return zip(image_nodes_filtered, full_image_urls)
 

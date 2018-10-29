@@ -28,9 +28,9 @@ requests.packages.urllib3.disable_warnings()
 class _Minetype(object):
 
     def __init__(self, parent_directory):
-        minetype_template = os.path.join(EPUB_TEMPLATES_DIR, 'minetype.txt')
+        minetype_template = os.path.join(EPUB_TEMPLATES_DIR, 'mimetype.txt')
         shutil.copy(minetype_template,
-                    os.path.join(parent_directory, 'minetype.txt'))
+                    os.path.join(parent_directory, 'mimetype.txt'))
 
 
 class _ContainerFile(object):
