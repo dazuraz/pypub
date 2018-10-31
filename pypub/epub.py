@@ -133,10 +133,28 @@ class TocNcx(_EpubFile):
         else:
             raise NotImplementedError()
 
+class CoverImage(_EpubFile):
+    def __init__(self, image_url, image_directory, image_folder):        
+        self.link = self._save_cover_image(image_url, image_directory, image_folder)
+        self.media_type = self._get_media_type(image_url)
+
+    def _save_cover_image(self, image_url, image_directory, image_folder):
+        image_save_path = os.path.join(image_directory, image_folder)
+        image_type = chapter.save_image(image_url, image_save_path, "cover")
+        return image_folder + "/cover." + image_type
+
+    def _get_media_type(self, url):
+        for ending in ['png', 'bmp', 'jpeg']:
+            if url.lower().endswith(ending):
+                return "image/" + ending
+        if url.lower().endswith('jpg'):
+            return "image/jpeg"
+        else:
+            return "image/unknown-type"
 
 class ContentOpf(_EpubFile):
 
-    def __init__(self, title, creator='', language='', rights='', publisher='', uid='', date=time.strftime("%m-%d-%Y")):
+    def __init__(self, title, creator='', language='', rights='', publisher='', uid='', cover=None, date=time.strftime("%d-%m-%Y")):
         super(ContentOpf, self).__init__(os.path.join(EPUB_TEMPLATES_DIR, 'opf.xml'),
                                          title=title,
                                          creator=creator,
@@ -144,7 +162,8 @@ class ContentOpf(_EpubFile):
                                          rights=rights,
                                          publisher=publisher,
                                          uid=uid,
-                                         date=date)
+                                         date=date,
+                                         cover=cover)
 
     def add_chapters(self, chapter_list):
         id_list = range(len(chapter_list))
@@ -174,9 +193,10 @@ class Epub(object):
             is pypub.
     """
 
-    def __init__(self, title, creator='pypub', language='en', rights='', publisher='pypub', epub_dir=None):
+    def __init__(self, title, creator='pypub', language='en', rights='', publisher='pypub', epub_dir=None, cover=None):
         self._create_directories(epub_dir)
         self.chapters = []
+        self.images = []
         self.title = title
         try:
             assert title
@@ -191,7 +211,11 @@ class Epub(object):
         self._increase_current_chapter_number()
         self.toc_html = TocHtml()
         self.toc_ncx = TocNcx()
-        self.opf = ContentOpf(self.title, self.creator, self.language, self.rights, self.publisher, self.uid)
+        if cover is None:
+            self.cover = cover
+        else:
+            self.cover = CoverImage(cover, self.OEBPS_DIR, self.LOCAL_IMAGE_DIR)
+        self.opf = ContentOpf(self.title, self.creator, self.language, self.rights, self.publisher, self.uid, self.cover)
         self.minetype = _Minetype(self.EPUB_DIR)
         self.container = _ContainerFile(self.META_INF_DIR)
 

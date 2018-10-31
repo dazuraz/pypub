@@ -199,7 +199,7 @@ class Chapter(object):
         for image_tag, image_url in image_url_list:
             _replace_image(image_url, image_tag, ebook_folder)
         unformatted_html_unicode_string = unicode(self._content_tree.prettify(encoding='utf-8',
-                                                                              formatter=EntitySubstitution.substitute_html),
+                                                                                formatter='html'),
                                                   encoding='utf-8')
         unformatted_html_unicode_string = unformatted_html_unicode_string.replace('<br>', '<br/>')
         self.content = unformatted_html_unicode_string
@@ -244,11 +244,11 @@ class ChapterFactory(object):
         """
         try:
             request_object = requests.get(url, headers=self.request_headers, allow_redirects=False)
+        except requests.exceptions.SSLError:
+            raise ValueError("Url %s doesn't have valid SSL certificate" % url)
         except (requests.exceptions.MissingSchema,
                 requests.exceptions.ConnectionError):
             raise ValueError("%s is an invalid url or no network connection" % url)
-        except requests.exceptions.SSLError:
-            raise ValueError("Url %s doesn't have valid SSL certificate" % url)
         unicode_string = request_object.text
         return self.create_chapter_from_string(unicode_string, url, title)
 
