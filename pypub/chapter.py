@@ -108,6 +108,8 @@ def _replace_image(image_url, image_tag, ebook_folder,
         image_extension = save_image(image_url, image_full_path,
                                      image_name)
         image_tag['src'] = 'images' + '/' + image_name + '.' + image_extension
+        if not image_tag.has_attr('alt'): 
+            image_tag['alt'] = ''
     except ImageErrorException:
         image_tag.decompose()
     except AssertionError:
