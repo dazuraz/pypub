@@ -30,8 +30,8 @@ class ImageErrorException(Exception):
 
 
 def get_image_type(url):
-    for ending in ['jpg', 'jpeg', '.gif' '.png']:
-        if url.endswith(ending):
+    for ending in ['jpg', 'jpeg', 'gif', 'png', 'bmp']:
+        if url.lower().endswith(ending):
             return ending
     else:
         try:
@@ -82,6 +82,14 @@ def save_image(image_url, image_directory, image_name):
         raise ImageErrorException(image_url)
     return image_type
 
+def get_media_type(url):
+    for ending in ['png', 'bmp', 'jpeg']:
+        if url.lower().endswith(ending):
+            return "image/" + ending
+    if url.lower().endswith('jpg'):
+        return "image/jpeg"
+    else:
+        return "image/unknown-type"
 
 def _replace_image(image_url, image_tag, ebook_folder,
                    image_name=None):
@@ -108,6 +116,9 @@ def _replace_image(image_url, image_tag, ebook_folder,
         image_extension = save_image(image_url, image_full_path,
                                      image_name)
         image_tag['src'] = 'images' + '/' + image_name + '.' + image_extension
+        if not image_tag.has_attr('alt'): 
+            image_tag['alt'] = ''
+        return { 'id': image_name, 'link': image_tag['src'], 'media_type': get_media_type(image_url) }
     except ImageErrorException:
         image_tag.decompose()
     except AssertionError:
@@ -143,6 +154,7 @@ class Chapter(object):
         self.content = content
         self._content_tree = BeautifulSoup(self.content, 'html.parser')
         self.url = url
+        self.images = []
         self.html_title = cgi.escape(self.title, quote=True)
 
     def write(self, file_name):
@@ -186,16 +198,20 @@ class Chapter(object):
     def _get_image_urls(self):
         image_nodes = self._content_tree.find_all('img')
         raw_image_urls = [node['src'] for node in image_nodes if node.has_attr('src')]
-        full_image_urls = [urlparse.urljoin(self.url, image_url) for image_url in raw_image_urls]
+        full_image_urls = []
+        if 'http' in self.url:
+            full_image_urls = [urlparse.urljoin(self.url, image_url) for image_url in raw_image_urls]
+        else:
+            full_image_urls = [os.path.join(self.url, image_url) for image_url in raw_image_urls]
         image_nodes_filtered = [node for node in image_nodes if node.has_attr('src')]
         return zip(image_nodes_filtered, full_image_urls)
 
     def _replace_images_in_chapter(self, ebook_folder):
         image_url_list = self._get_image_urls()
         for image_tag, image_url in image_url_list:
-            _replace_image(image_url, image_tag, ebook_folder)
+            self.images.append(_replace_image(image_url, image_tag, ebook_folder))
         unformatted_html_unicode_string = unicode(self._content_tree.prettify(encoding='utf-8',
-                                                                              formatter=EntitySubstitution.substitute_html),
+                                                                                formatter='html'),
                                                   encoding='utf-8')
         unformatted_html_unicode_string = unformatted_html_unicode_string.replace('<br>', '<br/>')
         self.content = unformatted_html_unicode_string
@@ -240,11 +256,11 @@ class ChapterFactory(object):
         """
         try:
             request_object = requests.get(url, headers=self.request_headers, allow_redirects=False)
+        except requests.exceptions.SSLError:
+            raise ValueError("Url %s doesn't have valid SSL certificate" % url)
         except (requests.exceptions.MissingSchema,
                 requests.exceptions.ConnectionError):
             raise ValueError("%s is an invalid url or no network connection" % url)
-        except requests.exceptions.SSLError:
-            raise ValueError("Url %s doesn't have valid SSL certificate" % url)
         unicode_string = request_object.text
         return self.create_chapter_from_string(unicode_string, url, title)
 
