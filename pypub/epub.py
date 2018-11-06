@@ -63,7 +63,7 @@ class _EpubFile(object):
         rendered_template = template.render(variable_value_pairs)
         self.content = rendered_template
 
-    def add_chapters(self, **parameter_lists):
+    def add_chapters(self, image_list, **parameter_lists):
         def check_list_lengths(lists):
             list_length = None
             for value in lists.values():
@@ -76,7 +76,7 @@ class _EpubFile(object):
         template_chapter = collections.namedtuple('template_chapter',
                                                   parameter_lists.keys())
         chapters = [template_chapter(*items) for items in zip(*parameter_lists.values())]
-        self._render_template(chapters=chapters, **self.non_chapter_parameters)
+        self._render_template(chapters=chapters, images=image_list, **self.non_chapter_parameters)
 
     def get_content(self):
         return self.content
@@ -87,7 +87,7 @@ class TocHtml(_EpubFile):
     def __init__(self, template_file=os.path.join(EPUB_TEMPLATES_DIR, 'toc.html'), **non_chapter_parameters):
         super(TocHtml, self).__init__(template_file, **non_chapter_parameters)
 
-    def add_chapters(self, chapter_list):
+    def add_chapters(self, chapter_list, image_list):
         chapter_numbers = range(len(chapter_list))
         link_list = [str(n) + '.xhtml' for n in chapter_numbers]
         try:
@@ -98,8 +98,9 @@ class TocHtml(_EpubFile):
             raise TypeError('chapter_list items must be Chapter not %s',
                             str(t))
         chapter_titles = [c.title for c in chapter_list]
-        super(TocHtml, self).add_chapters(title=chapter_titles,
-                                          link=link_list)
+        super(TocHtml, self).add_chapters(image_list, 
+                                        title=chapter_titles, 
+                                        link=link_list)
 
     def get_content_as_element(self):
         if lxml_module_exists:
@@ -116,12 +117,13 @@ class TocNcx(_EpubFile):
                  **non_chapter_parameters):
         super(TocNcx, self).__init__(template_file, **non_chapter_parameters)
 
-    def add_chapters(self, chapter_list):
+    def add_chapters(self, chapter_list, image_list):
         id_list = range(len(chapter_list))
         play_order_list = [n + 1 for n in id_list]
         title_list = [c.title for c in chapter_list]
         link_list = [str(n) + '.xhtml' for n in id_list]
-        super(TocNcx, self).add_chapters(**{'id': id_list,
+        super(TocNcx, self).add_chapters(image_list,
+                                         **{'id': id_list,
                                             'play_order': play_order_list,
                                             'title': title_list,
                                             'link': link_list})
@@ -136,21 +138,12 @@ class TocNcx(_EpubFile):
 class CoverImage(_EpubFile):
     def __init__(self, image_url, image_directory, image_folder):        
         self.link = self._save_cover_image(image_url, image_directory, image_folder)
-        self.media_type = self._get_media_type(image_url)
+        self.media_type = chapter.get_media_type(image_url)
 
     def _save_cover_image(self, image_url, image_directory, image_folder):
         image_save_path = os.path.join(image_directory, image_folder)
         image_type = chapter.save_image(image_url, image_save_path, "cover")
         return image_folder + "/cover." + image_type
-
-    def _get_media_type(self, url):
-        for ending in ['png', 'bmp', 'jpeg']:
-            if url.lower().endswith(ending):
-                return "image/" + ending
-        if url.lower().endswith('jpg'):
-            return "image/jpeg"
-        else:
-            return "image/unknown-type"
 
 class ContentOpf(_EpubFile):
 
@@ -165,10 +158,10 @@ class ContentOpf(_EpubFile):
                                          date=date,
                                          cover=cover)
 
-    def add_chapters(self, chapter_list):
+    def add_chapters(self, chapter_list, image_list):
         id_list = range(len(chapter_list))
         link_list = [str(n) + '.xhtml' for n in id_list]
-        super(ContentOpf, self).add_chapters(**{'id': id_list, 'link': link_list})
+        super(ContentOpf, self).add_chapters(image_list, **{'id': id_list, 'link': link_list})
 
     def get_content_as_element(self):
         if lxml_module_exists:
@@ -260,6 +253,7 @@ class Epub(object):
         c.write(chapter_file_output)
         self._increase_current_chapter_number()
         self.chapters.append(c)
+        self.images.extend(c.images)
 
     def create_epub(self, output_directory, epub_name=None):
         """
@@ -272,7 +266,7 @@ class Epub(object):
         """
         def createTOCs_and_ContentOPF():
             for epub_file, name in ((self.toc_html, 'toc.html'), (self.toc_ncx, 'toc.ncx'), (self.opf, 'content.opf'),):
-                epub_file.add_chapters(self.chapters)
+                epub_file.add_chapters(self.chapters, self.images)
                 epub_file.write(os.path.join(self.OEBPS_DIR, name))
 
         def create_zip_archive(epub_name):

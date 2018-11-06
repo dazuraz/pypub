@@ -8,20 +8,17 @@
     <dc:publisher>{{ publisher }}</dc:publisher>
     <dc:identifier opf:scheme="UUID">{{ uid }}</dc:identifier>
     <dc:date>{{ date }}</dc:date>
-    {% if cover %}
-    <meta name="cover" content="cover_img"/>
+    {% if cover %}<meta name="cover" content="cover_img"/>
     {% endif %}
   </metadata>
   <manifest>
     <item href="toc.ncx" id="ncx" media-type="application/x-dtbncx+xml"/>
     <item href="toc.html" id="toc" media-type="application/xhtml+xml"/>    
-    {% if cover %}
-    <item href="{{ cover.link }}" id="cover_img" media-type="{{ cover.media_type }}" properties="cover-image"/>
+    {% if cover %}<item href="{{ cover.link }}" id="cover_img" media-type="{{ cover.media_type }}" properties="cover-image"/>
     {% endif %}
-    {% for chapter in chapters %}
-    <item href="{{ chapter.link }}" id="{{ chapter.id }}" media-type="application/xhtml+xml"/>
+    {% for chapter in chapters %}<item href="{{ chapter.link }}" id="{{ chapter.id }}" media-type="application/xhtml+xml"/>
     {% endfor %}
-    {% for image in images %}
+    {% for image in images %}<item href="{{ image.link }}" id="{{ image.id }}" media-type="{{ image.media_type }}"/>
     {% endfor %}
   </manifest>
   <spine toc="ncx">

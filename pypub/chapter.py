@@ -82,6 +82,14 @@ def save_image(image_url, image_directory, image_name):
         raise ImageErrorException(image_url)
     return image_type
 
+def get_media_type(url):
+    for ending in ['png', 'bmp', 'jpeg']:
+        if url.lower().endswith(ending):
+            return "image/" + ending
+    if url.lower().endswith('jpg'):
+        return "image/jpeg"
+    else:
+        return "image/unknown-type"
 
 def _replace_image(image_url, image_tag, ebook_folder,
                    image_name=None):
@@ -110,6 +118,7 @@ def _replace_image(image_url, image_tag, ebook_folder,
         image_tag['src'] = 'images' + '/' + image_name + '.' + image_extension
         if not image_tag.has_attr('alt'): 
             image_tag['alt'] = ''
+        return { 'id': image_name, 'link': image_tag['src'], 'media_type': get_media_type(image_url) }
     except ImageErrorException:
         image_tag.decompose()
     except AssertionError:
@@ -145,6 +154,7 @@ class Chapter(object):
         self.content = content
         self._content_tree = BeautifulSoup(self.content, 'html.parser')
         self.url = url
+        self.images = []
         self.html_title = cgi.escape(self.title, quote=True)
 
     def write(self, file_name):
@@ -199,7 +209,7 @@ class Chapter(object):
     def _replace_images_in_chapter(self, ebook_folder):
         image_url_list = self._get_image_urls()
         for image_tag, image_url in image_url_list:
-            _replace_image(image_url, image_tag, ebook_folder)
+            self.images.append(_replace_image(image_url, image_tag, ebook_folder))
         unformatted_html_unicode_string = unicode(self._content_tree.prettify(encoding='utf-8',
                                                                                 formatter='html'),
                                                   encoding='utf-8')
